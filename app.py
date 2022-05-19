@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import functools
 import math
 import os
@@ -8,30 +7,29 @@ import re
 import webbrowser
 
 import imgviz
-import natsort
+import natsort # 排序模块
 from qtpy import QtCore
 from qtpy.QtCore import Qt
 from qtpy import QtGui
 from qtpy import QtWidgets
 
-from labelme import __appname__
-from labelme import PY2
+# from labelme import PY2
 
-from . import utils
-from labelme.config import get_config
-from labelme.label_file import LabelFile
-from labelme.label_file import LabelFileError
-from labelme.logger import logger
-from labelme.shape import Shape
-from labelme.widgets import BrightnessContrastDialog
-from labelme.widgets import Canvas
-from labelme.widgets import FileDialogPreview
-from labelme.widgets import LabelDialog
-from labelme.widgets import LabelListWidget
-from labelme.widgets import LabelListWidgetItem
-from labelme.widgets import ToolBar
-from labelme.widgets import UniqueLabelQListWidget
-from labelme.widgets import ZoomWidget
+import utils
+from config import get_config
+from label_file import LabelFile
+from label_file import LabelFileError
+from logger import get_logger
+from shape import Shape
+from widgets import BrightnessContrastDialog
+from widgets import Canvas
+from widgets import FileDialogPreview
+from widgets import LabelDialog
+from widgets import LabelListWidget
+from widgets import LabelListWidgetItem
+from widgets import ToolBar
+from widgets import UniqueLabelQListWidget
+from widgets import ZoomWidget
 
 # - [medium] Set max zoom value to something big enough for FitWidth/Window
 
@@ -39,7 +37,7 @@ from labelme.widgets import ZoomWidget
 
 
 LABEL_COLORMAP = imgviz.label_colormap()
-
+logger = get_logger(__name__)
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -65,6 +63,8 @@ class MainWindow(QtWidgets.QMainWindow):
             config = get_config()
         self._config = config
 
+        self.__appname__ = self._config["app"]["name"]
+
         # set default shape colors
         Shape.line_color = QtGui.QColor(*self._config["shape"]["line_color"])
         Shape.fill_color = QtGui.QColor(*self._config["shape"]["fill_color"])
@@ -85,7 +85,7 @@ class MainWindow(QtWidgets.QMainWindow):
         Shape.point_size = self._config["shape"]["point_size"]
 
         super(MainWindow, self).__init__()
-        self.setWindowTitle(__appname__)
+        self.setWindowTitle(self.__appname__)
 
         # Whether we need to save or not.
         self.dirty = False
@@ -290,37 +290,45 @@ class MainWindow(QtWidgets.QMainWindow):
         saveAuto.setChecked(self._config["auto_save"])
 
         saveWithImageData = action(
-            text="Save With Image Data",
+            text=self.tr("Save With Image Data"),
             slot=self.enableSaveImageWithData,
-            tip="Save image data in label file",
+            tip=self.tr("Save image data in label file"),
             checkable=True,
             checked=self._config["store_data"],
         )
 
         close = action(
-            "&Close",
-            self.closeFile,
-            shortcuts["close"],
-            "close",
-            "Close current file",
+            text=self.tr("&Close"),
+            slot=self.closeFile,
+            shortcut=shortcuts["close"],
+            icon="close",
+            tip=self.tr("Close current file"),
         )
 
         toggle_keep_prev_mode = action(
-            self.tr("Keep Previous Annotation"),
-            self.toggleKeepPrevMode,
-            shortcuts["toggle_keep_prev_mode"],
-            None,
-            self.tr('Toggle "keep pevious annotation" mode'),
+            text=self.tr("Keep Previous Annotation"),
+            slot=self.toggleKeepPrevMode,
+            shortcut=shortcuts["toggle_keep_prev_mode"],
+            icon=None,
+            tip=self.tr('Toggle "keep pevious annotation" mode'),
             checkable=True,
         )
         toggle_keep_prev_mode.setChecked(self._config["keep_prev"])
 
+        autoDetect = action(
+            text=self.tr("Auto Detect"),
+            slot= None,
+            shortcut=shortcuts["auto_detect"],
+            icon="detect",
+            tip=self.tr("Auto-detect objects in the current image"),
+            enabled=False,
+        )
         createMode = action(
-            self.tr("Create Polygons"),
-            lambda: self.toggleDrawMode(False, createMode="polygon"),
-            shortcuts["create_polygon"],
-            "objects",
-            self.tr("Start drawing polygons"),
+            text=self.tr("Create Polygons"),
+            slot=lambda: self.toggleDrawMode(False, createMode="polygon"),
+            shortcut=shortcuts["create_polygon"],
+            icon="objects",
+            tip=self.tr("Start drawing polygons"),
             enabled=False,
         )
         createRectangleMode = action(
@@ -520,11 +528,11 @@ class MainWindow(QtWidgets.QMainWindow):
             enabled=False,
         )
         brightnessContrast = action(
-            "&Brightness Contrast",
+            self.tr("&Brightness Contrast"),
             self.brightnessContrast,
             None,
             "color",
-            "Adjust brightness and contrast",
+            self.tr("Adjust brightness and contrast"),
             enabled=False,
         )
         # Group zoom controls into a list for easier toggling.
@@ -591,6 +599,7 @@ class MainWindow(QtWidgets.QMainWindow):
             paste=paste,
             undoLastPoint=undoLastPoint,
             undo=undo,
+            autoDetect=autoDetect,
             removePoint=removePoint,
             createMode=createMode,
             editMode=editMode,
@@ -627,6 +636,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ),
             # menu shown at right click
             menu=(
+                autoDetect,
                 createMode,
                 createRectangleMode,
                 createCircleMode,
@@ -735,6 +745,7 @@ class MainWindow(QtWidgets.QMainWindow):
             save,
             deleteFile,
             None,
+            autoDetect,
             createMode,
             editMode,
             duplicate,
@@ -748,7 +759,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fitWidth,
         )
 
-        self.statusBar().showMessage(str(self.tr("%s started.")) % __appname__)
+        self.statusBar().showMessage(str(self.tr("%s started.")) % self.__appname__)
         self.statusBar().show()
 
         if output_file is not None and self._config["auto_save"]:
@@ -865,7 +876,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         self.dirty = True
         self.actions.save.setEnabled(True)
-        title = __appname__
+        title = self.__appname__
         if self.filename is not None:
             title = "{} - {}*".format(title, self.filename)
         self.setWindowTitle(title)
@@ -879,7 +890,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.createLineMode.setEnabled(True)
         self.actions.createPointMode.setEnabled(True)
         self.actions.createLineStripMode.setEnabled(True)
-        title = __appname__
+        title = self.__appname__
         if self.filename is not None:
             title = "{} - {}".format(title, self.filename)
         self.setWindowTitle(title)
@@ -1238,7 +1249,7 @@ class MainWindow(QtWidgets.QMainWindow):
             data = s.other_data.copy()
             data.update(
                 dict(
-                    label=s.label.encode("utf-8") if PY2 else s.label,
+                    label=s.label,
                     points=[(p.x(), p.y()) for p in s.points],
                     group_id=s.group_id,
                     shape_type=s.shape_type,
@@ -1734,7 +1745,7 @@ class MainWindow(QtWidgets.QMainWindow):
         fileDialog.setFileMode(FileDialogPreview.ExistingFile)
         fileDialog.setNameFilter(filters)
         fileDialog.setWindowTitle(
-            self.tr("%s - Choose Image or Label file") % __appname__,
+            self.tr("%s - Choose Image or Label file") % self.__appname__,
         )
         fileDialog.setWindowFilePath(path)
         fileDialog.setViewMode(FileDialogPreview.Detail)
@@ -1752,7 +1763,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         output_dir = QtWidgets.QFileDialog.getExistingDirectory(
             self,
-            self.tr("%s - Save/Load Annotations in Directory") % __appname__,
+            self.tr("%s - Save/Load Annotations in Directory") % self.__appname__,
             default_output_dir,
             QtWidgets.QFileDialog.ShowDirsOnly
             | QtWidgets.QFileDialog.DontResolveSymlinks,
@@ -1796,7 +1807,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._saveFile(self.saveFileDialog())
 
     def saveFileDialog(self):
-        caption = self.tr("%s - Choose File") % __appname__
+        caption = self.tr("%s - Choose File") % self.__appname__
         filters = self.tr("Label files (*%s)") % LabelFile.suffix
         if self.output_dir:
             dlg = QtWidgets.QFileDialog(
@@ -1973,7 +1984,7 @@ class MainWindow(QtWidgets.QMainWindow):
         targetDirPath = str(
             QtWidgets.QFileDialog.getExistingDirectory(
                 self,
-                self.tr("%s - Open Directory") % __appname__,
+                self.tr("%s - Open Directory") % self.__appname__,
                 defaultOpenDirPath,
                 QtWidgets.QFileDialog.ShowDirsOnly
                 | QtWidgets.QFileDialog.DontResolveSymlinks,

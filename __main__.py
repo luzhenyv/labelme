@@ -9,12 +9,12 @@ import yaml
 from qtpy import QtCore
 from qtpy import QtWidgets
 
-from labelme import __appname__
-from labelme import __version__
-from labelme.app import MainWindow
-from labelme.config import get_config
-from labelme.logger import logger
-from labelme.utils import newIcon
+from app import MainWindow
+from config import get_config
+from logger import get_logger
+from utils import newIcon
+
+here = osp.dirname(osp.abspath(__file__))
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
         help="output file or directory (if it ends with .json it is "
         "recognized as file, else as directory)",
     )
-    default_config_file = os.path.join(os.path.expanduser("~"), ".labelmerc")
+    default_config_file = os.path.join(here, "config", "user_config.yaml")
     parser.add_argument(
         "--config",
         dest="config",
@@ -109,12 +109,6 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.version:
-        print("{0} {1}".format(__appname__, __version__))
-        sys.exit(0)
-
-    logger.setLevel(getattr(logging, args.logger_level.upper()))
-
     if hasattr(args, "flags"):
         if os.path.isfile(args.flags):
             with codecs.open(args.flags, "r", encoding="utf-8") as f:
@@ -144,6 +138,13 @@ def main():
     config_file_or_yaml = config_from_args.pop("config")
     config = get_config(config_file_or_yaml, config_from_args)
 
+    logger = get_logger(config["app"]["name"])
+    logger.setLevel(config["logger_level"].upper())
+
+    if hasattr(args, "version"):
+        print("{0} {1}".format(config["app"]["name"], config["app"]["version"]))
+        sys.exit(0)
+
     if not config["labels"] and config["validate_label"]:
         logger.error(
             "--labels must be specified with --validatelabel or "
@@ -166,7 +167,7 @@ def main():
         osp.dirname(osp.abspath(__file__)) + "/translate",
     )
     app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName(__appname__)
+    app.setApplicationName(config["app"]["name"])
     app.setWindowIcon(newIcon("icon"))
     app.installTranslator(translator)
     win = MainWindow(

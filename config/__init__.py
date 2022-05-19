@@ -3,8 +3,9 @@ import shutil
 
 import yaml
 
-from labelme.logger import logger
+from logger import get_logger
 
+logger = get_logger(__name__)
 
 here = osp.dirname(osp.abspath(__file__))
 
@@ -31,7 +32,7 @@ def get_default_config():
         config = yaml.safe_load(f)
 
     # save default config to ~/.labelmerc
-    user_config_file = osp.join(osp.expanduser("~"), ".labelmerc")
+    user_config_file = osp.join(here, "user_config.yaml")
     if not osp.exists(user_config_file):
         try:
             shutil.copy(config_file, user_config_file)
@@ -82,3 +83,15 @@ def get_config(config_file_or_yaml=None, config_from_args=None):
         )
 
     return config
+
+
+def get_app_version():
+    # 1. default config
+    config = get_default_config()
+    return config["app"]["version"]
+
+
+def get_app_name():
+    # 1. default config
+    config = get_default_config()
+    return config["app"]["name"]

@@ -1,3 +1,6 @@
+app:
+  name: labelme
+  version: 5.0.1
 auto_save: false
 display_label_popup: true
 store_data: true
@@ -68,6 +71,10 @@ canvas:
   # The max number of edits we can undo
   num_backups: 10
 
+# detection
+detect:
+
+
 shortcuts:
   close: Ctrl+W
   open: Ctrl+O
@@ -87,6 +94,7 @@ shortcuts:
   fit_window: Ctrl+F
   fit_width: Ctrl+Shift+F
 
+  auto_detect: Ctrl+A
   create_polygon: Ctrl+N
   create_rectangle: Ctrl+R
   create_circle: null

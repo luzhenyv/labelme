@@ -5,11 +5,11 @@ from qtpy import QtCore
 from qtpy import QtGui
 from qtpy import QtWidgets
 
-from labelme.logger import logger
-import labelme.utils
+from logger import get_logger
+import utils
 
 
-QT5 = QT_VERSION[0] == "5"
+logger = get_logger(__name__)
 
 # - Calculate optimal position so as not to go out of screen area.
 
@@ -44,7 +44,7 @@ class LabelDialog(QtWidgets.QDialog):
         super(LabelDialog, self).__init__(parent)
         self.edit = LabelQLineEdit()
         self.edit.setPlaceholderText(text)
-        self.edit.setValidator(labelme.utils.labelValidator())
+        self.edit.setValidator(utils.labelValidator())
         self.edit.editingFinished.connect(self.postProcess)
         if flags:
             self.edit.textChanged.connect(self.updateFlags)
@@ -65,8 +65,8 @@ class LabelDialog(QtWidgets.QDialog):
             QtCore.Qt.Horizontal,
             self,
         )
-        bb.button(bb.Ok).setIcon(labelme.utils.newIcon("done"))
-        bb.button(bb.Cancel).setIcon(labelme.utils.newIcon("undo"))
+        bb.button(bb.Ok).setIcon(utils.newIcon("done"))
+        bb.button(bb.Cancel).setIcon(utils.newIcon("undo"))
         bb.accepted.connect(self.validate)
         bb.rejected.connect(self.reject)
         layout.addWidget(bb)
@@ -104,12 +104,6 @@ class LabelDialog(QtWidgets.QDialog):
         self.setLayout(layout)
         # completion
         completer = QtWidgets.QCompleter()
-        if not QT5 and completion != "startswith":
-            logger.warn(
-                "completion other than 'startswith' is only "
-                "supported with Qt5. Using 'startswith'"
-            )
-            completion = "startswith"
         if completion == "startswith":
             completer.setCompletionMode(QtWidgets.QCompleter.InlineCompletion)
             # Default settings.

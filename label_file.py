@@ -1,3 +1,4 @@
+
 import base64
 import contextlib
 import io
@@ -6,24 +7,19 @@ import os.path as osp
 
 import PIL.Image
 
-from labelme import __version__
-from labelme.logger import logger
-from labelme import PY2
-from labelme import QT4
-from labelme import utils
+from logger import get_logger
+from config import get_app_version
+import utils
 
-
+__version__ = get_app_version()
+logger = get_logger(__name__)
 PIL.Image.MAX_IMAGE_PIXELS = None
 
 
 @contextlib.contextmanager
 def open(name, mode):
     assert mode in ["r", "w"]
-    if PY2:
-        mode += "b"
-        encoding = None
-    else:
-        encoding = "utf-8"
+    encoding = "utf-8"
     yield io.open(name, mode, encoding=encoding)
     return
 
@@ -57,9 +53,7 @@ class LabelFile(object):
 
         with io.BytesIO() as f:
             ext = osp.splitext(filename)[1].lower()
-            if PY2 and QT4:
-                format = "PNG"
-            elif ext in [".jpg", ".jpeg"]:
+            if ext in [".jpg", ".jpeg"]:
                 format = "JPEG"
             else:
                 format = "PNG"

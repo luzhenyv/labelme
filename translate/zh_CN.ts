@@ -151,6 +151,16 @@
         <translation>自动保存</translation>
     </message>
     <message>
+        <location filename="../app.py" line="293"/>
+        <source>Save With Image Data</source>
+        <translation>保存图像数据到文件</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="295"/>
+        <source>Save image data in label file</source>
+        <translation>标注文件中，保存图像数据</translation>
+    </message>
+    <message>
         <location filename="../app.py" line="238"/>
         <source>&amp;Close</source>
         <translation>关闭(&amp;C)</translation>

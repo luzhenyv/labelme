@@ -5,7 +5,9 @@ import numpy as np
 import PIL.Image
 import PIL.ImageDraw
 
-from labelme.logger import logger
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def polygons_to_mask(img_shape, polygons, shape_type=None):
