@@ -317,7 +317,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         autoDetect = action(
             text=self.tr("Auto Detect"),
-            slot= None,
+            slot=self.autoDetect,
             shortcut=shortcuts["auto_detect"],
             icon="detect",
             tip=self.tr("Auto-detect objects in the current image"),
@@ -655,6 +655,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ),
             onLoadActive=(
                 close,
+                autoDetect,
                 createMode,
                 createRectangleMode,
                 createCircleMode,
@@ -853,6 +854,7 @@ class MainWindow(QtWidgets.QMainWindow):
         utils.addActions(self.canvas.menus[0], menu)
         self.menus.edit.clear()
         actions = (
+            self.actions.autoDetect,
             self.actions.createMode,
             self.actions.createRectangleMode,
             self.actions.createCircleMode,
@@ -884,6 +886,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def setClean(self):
         self.dirty = False
         self.actions.save.setEnabled(False)
+        self.actions.autoDetect.setEnabled(True),
         self.actions.createMode.setEnabled(True)
         self.actions.createRectangleMode.setEnabled(True)
         self.actions.createCircleMode.setEnabled(True)
@@ -961,6 +964,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.setEditing(edit)
         self.canvas.createMode = createMode
         if edit:
+            self.actions.autoDetect.setEnabled(True)
             self.actions.createMode.setEnabled(True)
             self.actions.createRectangleMode.setEnabled(True)
             self.actions.createCircleMode.setEnabled(True)
@@ -968,7 +972,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.actions.createPointMode.setEnabled(True)
             self.actions.createLineStripMode.setEnabled(True)
         else:
-            if createMode == "polygon":
+            if createMode == "auto":
+                self.actions.autoDetect.setEnabled(False)
+                self.actions.createMode.setEnabled(True)
+                self.actions.createRectangleMode.setEnabled(True)
+                self.actions.createCircleMode.setEnabled(True)
+                self.actions.createLineMode.setEnabled(True)
+                self.actions.createPointMode.setEnabled(True)
+                self.actions.createLineStripMode.setEnabled(True)
+            elif createMode == "polygon":
+                self.actions.autoDetect.setEnabled(True)
                 self.actions.createMode.setEnabled(False)
                 self.actions.createRectangleMode.setEnabled(True)
                 self.actions.createCircleMode.setEnabled(True)
@@ -976,6 +989,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.actions.createPointMode.setEnabled(True)
                 self.actions.createLineStripMode.setEnabled(True)
             elif createMode == "rectangle":
+                self.actions.autoDetect.setEnabled(True)
                 self.actions.createMode.setEnabled(True)
                 self.actions.createRectangleMode.setEnabled(False)
                 self.actions.createCircleMode.setEnabled(True)
@@ -983,6 +997,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.actions.createPointMode.setEnabled(True)
                 self.actions.createLineStripMode.setEnabled(True)
             elif createMode == "line":
+                self.actions.autoDetect.setEnabled(True)
                 self.actions.createMode.setEnabled(True)
                 self.actions.createRectangleMode.setEnabled(True)
                 self.actions.createCircleMode.setEnabled(True)
@@ -990,6 +1005,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.actions.createPointMode.setEnabled(True)
                 self.actions.createLineStripMode.setEnabled(True)
             elif createMode == "point":
+                self.actions.autoDetect.setEnabled(True)
                 self.actions.createMode.setEnabled(True)
                 self.actions.createRectangleMode.setEnabled(True)
                 self.actions.createCircleMode.setEnabled(True)
@@ -997,6 +1013,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.actions.createPointMode.setEnabled(False)
                 self.actions.createLineStripMode.setEnabled(True)
             elif createMode == "circle":
+                self.actions.autoDetect.setEnabled(True)
                 self.actions.createMode.setEnabled(True)
                 self.actions.createRectangleMode.setEnabled(True)
                 self.actions.createCircleMode.setEnabled(False)
@@ -1004,6 +1021,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.actions.createPointMode.setEnabled(True)
                 self.actions.createLineStripMode.setEnabled(True)
             elif createMode == "linestrip":
+                self.actions.autoDetect.setEnabled(True)
                 self.actions.createMode.setEnabled(True)
                 self.actions.createRectangleMode.setEnabled(True)
                 self.actions.createCircleMode.setEnabled(True)
@@ -2074,3 +2092,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     images.append(relativePath)
         images = natsort.os_sorted(images)
         return images
+
+    # Artificial Intelligence detections. #
+    def autoDetect(self):
+        logger.info("Welcome use yolo")

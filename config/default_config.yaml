@@ -73,6 +73,10 @@ canvas:
 
 # detection
 detect:
+  # 如果图像大于阈值，需要先裁剪，后融合
+  image_size: [500, 500]
+  stride: [300, 300]
+  TEMP_RESULT_DIR: ./temp
 
 
 shortcuts:
