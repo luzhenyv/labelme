@@ -5,15 +5,15 @@ import os
 import os.path as osp
 import re
 import webbrowser
+import tempfile
 
 import imgviz
-import natsort # 排序模块
+import natsort  # 排序模块
+import cv2
 from qtpy import QtCore
 from qtpy.QtCore import Qt
 from qtpy import QtGui
 from qtpy import QtWidgets
-
-# from labelme import PY2
 
 import utils
 from config import get_config
@@ -30,6 +30,7 @@ from widgets import LabelListWidgetItem
 from widgets import ToolBar
 from widgets import UniqueLabelQListWidget
 from widgets import ZoomWidget
+from yolo import detect
 
 # - [medium] Set max zoom value to something big enough for FitWidth/Window
 
@@ -51,6 +52,12 @@ class MainWindow(QtWidgets.QMainWindow):
         output_file=None,
         output_dir=None,
     ):
+        if config is None:
+            config = get_config()
+        self._config = config
+
+        # logger.setLevel(self._config["logger_level"].upper())
+
         if output is not None:
             logger.warning(
                 "argument output is deprecated, use output_file instead"
@@ -59,9 +66,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 output_file = output
 
         # see labelme/config/default_config.yaml for valid configuration
-        if config is None:
-            config = get_config()
-        self._config = config
 
         self.__appname__ = self._config["app"]["name"]
 
@@ -962,7 +966,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def toggleDrawMode(self, edit=True, createMode="polygon"):
         self.canvas.setEditing(edit)
-        self.canvas.createMode = createMode
+        self.canvas.createMode = createMode if createMode != "auto" else "polygon"
         if edit:
             self.actions.autoDetect.setEnabled(True)
             self.actions.createMode.setEnabled(True)
@@ -1251,6 +1255,40 @@ class MainWindow(QtWidgets.QMainWindow):
 
             s.append(shape)
         self.loadShapes(s)
+
+
+    def loadYoloLabels(self, labels, image):
+        height, width = image.shape[:2]
+        s = []
+        for class_id, x_center, y_center, box_width, box_height in labels:
+            label = self._config["labels"][int(class_id)]
+            x1 = int((x_center - box_width / 2) * width)
+            x1 = utils.clip_value(x1, 0, width)
+
+            x2 = int((x_center + box_width / 2) * width)
+            x2 = utils.clip_value(x2, 0, width)
+
+            y1 = int((y_center - box_height / 2) * height)
+            y1 = utils.clip_value(y1, 0, height)
+
+            y2 = int((y_center + box_height / 2) * height)
+            y2 = utils.clip_value(y2, 0, height)
+
+            points = [[x1, y1], [x2, y2]]
+
+            shape = Shape(
+                label=label,
+                shape_type='rectangle',
+            )
+            for x, y in points:
+                shape.addPoint(QtCore.QPointF(x, y))
+            shape.close()
+
+            shape.flags = {}
+            s.append(shape)
+        self.setDirty()
+        self.loadShapes(s)
+
 
     def loadFlags(self, flags):
         self.flag_widget.clear()
@@ -2095,4 +2133,76 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # Artificial Intelligence detections. #
     def autoDetect(self):
+        self.toggleDrawMode(False, createMode="auto"),
+
         logger.info("Welcome use yolo")
+        logger.info(f'current file is {self.filename}')
+        logger.info(f'image shape is {type(self.imageData)}')
+        image, up_left_coordinates, patches = utils.extract_image_patches(
+            None,
+            image_path=self.filename,
+            size=self._config["detect"]["patch_size"],
+            stride=self._config["detect"]["patch_stride"],
+            padding="same"
+        )
+
+        number_rows, number_cols, elements = patches.shape
+        logger.info(f"Image size: {image.shape[0]} X {image.shape[1]}")
+        logger.info(f"Patch size: {number_rows} X {number_cols}")
+        logger.info(f"Patches per image: {number_cols * number_rows}")
+        logger.info(f"Elements per patch: {elements}")
+
+        with tempfile.TemporaryDirectory() as label_me_temp_dir: # 零时分割图结果保存根目录
+            TEMP_CLIP_DIR = os.path.join(label_me_temp_dir, "clip")  # 零时分割图
+            logger.info(f'labelme temperate dir is {label_me_temp_dir}')
+            if patches.shape[0] > 4:  # 如果图像较大先分块检测
+                if not os.path.exists(TEMP_CLIP_DIR):
+                    os.mkdir(TEMP_CLIP_DIR)
+
+                utils.save_patches(
+                    TEMP_CLIP_DIR,
+                    patches,
+                    up_left_coordinates,
+                    size=self._config["detect"]["patch_size"],
+                )
+
+                detect.run(
+                    weights=r'./yolo/weights/best.pt',
+                    source=TEMP_CLIP_DIR,
+                    data=r'./yolo/data/cells.yaml',
+                    save_txt=True,
+                    project=label_me_temp_dir,
+                    name='result',
+                )
+            else:
+                detect.run(
+                    weights=r'./yolo/weights/best.pt',
+                    source=self.filename,
+                    data=r'./yolo/data/cells.yaml',
+                    save_txt=True,
+                    project=label_me_temp_dir,
+                    name='result',
+                )
+
+            label_dir_path = os.path.join(label_me_temp_dir, 'result', 'labels')
+            labels = utils.parse_patches_detection(
+                label_dir_path,
+                image,
+                self._config["detect"]["patch_size"])
+
+            if len(labels) < 1:
+                return
+
+            labels = utils.fuse_labels(
+                labels,
+                self._config["detect"]["iou_threshold"]
+            )
+
+            labels = utils.filter_labels(
+                labels,
+                self._config["detect"]["area_threshold"],
+                image.shape[:2]
+            )
+            # logger.info(f'labels is {labels}')
+        self.toggleDrawMode(False, createMode="polygon"),
+        self.loadYoloLabels(labels, image)

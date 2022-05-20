@@ -1,4 +1,5 @@
 import os
+import cv2
 import numpy as np
 
 
@@ -77,7 +78,7 @@ def pad_image(image, size=(5, 5), stride=(2, 2), padding="VALID"):
     return padding_image
 
 
-def extract_image_patches(image, size=(10, 10), stride=(10, 10), rate=(1, 1), padding="VALID"):
+def extract_image_patches(image, image_path=None, size=(10, 10), stride=(10, 10), rate=(1, 1), padding="VALID"):
     """
     This op collects patches from the input image, as if applying a convolution.
     All extracted patches are stacked in the depth (last) dimension of the output.
@@ -87,6 +88,7 @@ def extract_image_patches(image, size=(10, 10), stride=(10, 10), rate=(1, 1), pa
 
     Args:
         image: A numpy.ndarray with shape [in_rows, in_cols, depth];
+        image_path: A String, image file path
         size: A tuple or list like [size_rows, size_cols], The size of extracted patches;
         stride: A tuple or list like [stride_rows, stride_cols], How far the centers of
             two consecutive patches are in the images;
@@ -112,23 +114,28 @@ def extract_image_patches(image, size=(10, 10), stride=(10, 10), rate=(1, 1), pa
     assert len(rate) == 2, "The length of rate is not 2"
     assert padding.upper() in ["SAME", "VALID"], "padding MUST be 'SAME' or 'VALID'"
 
+    if image is None and image_path:
+        image = cv2.imread(image_path)
+    else:
+        raise ValueError("Both Image data and filepath are None")
+
     size = (
         size[0] + (size[0] - 1) * (rate[0] - 1),
         size[1] + (size[1] - 1) * (rate[1] - 1),
     )  # update patch_size
 
     up_left_coordinates = get_up_left_coordinates(image, size, stride, padding)
-    image = pad_image(image, size, stride, padding)
+    image_padding = pad_image(image, size, stride, padding)
 
     patches = []
     for y, x in np.reshape(up_left_coordinates, (-1, 2)):
         patches.append(
-            image[y:y + size[0], x:x + size[1]],
+            image_padding[y:y + size[0], x:x + size[1]],
         )
     patches = np.stack(patches, axis=0)
     patches = np.reshape(patches, list(up_left_coordinates.shape[:-1]) + [-1])
 
-    return up_left_coordinates, patches
+    return image, up_left_coordinates, patches
 
 
 def fuse_results(result_dir_path, size, image_size):
@@ -205,7 +212,19 @@ def filter_labels(labels, area_threshold=0, img_shape=(1, 1)):
     height, width = img_shape
     area_threshold = area_threshold if area_threshold > 1 else area_threshold * height * width
 
-    boxes_area = labels[..., 3] * labels[..., 4] * height * width
+    boxes = convert_xywh_to_xyxy(labels[..., 1:])
+    boxes[..., [0, 2]] = boxes[..., [0, 2]] * width
+    boxes[..., [0, 2]] = np.clip(boxes[..., [0, 2]], 0, width - 1)
+
+    boxes[..., [1, 3]] = boxes[..., [1, 3]] * height
+    boxes[..., [1, 3]] = np.clip(boxes[..., [1, 3]], 0, height - 1)
+
+    # print(f'width is {width}')
+    # print(f'height is {height}')
+    # print(f'boxes is {boxes}')
+
+    boxes = convert_xyxy_to_xywh(boxes)
+    boxes_area = boxes[..., 2] * boxes[..., 3]
     return labels[np.where(boxes_area > area_threshold)]
 
 
@@ -322,6 +341,64 @@ def compute_iou(boxes1, boxes2):
     )
 
     return np.clip(intersection / union, 0.0, 1.0)
+
+
+def save_patches(save_dir, patches, up_left_coordinates, size):
+    number_rows, number_cols, elements = patches.shape
+    for row in range(number_rows):
+        for col in range(number_cols):
+            y, x = up_left_coordinates[row, col]
+            patch_image = np.reshape(patches[row, col], (size[0], size[1], -1))
+            cv2.imwrite(
+                os.path.join(save_dir, f'{y}_{x}.png'),
+                patch_image.astype("uint8")
+            )
+
+
+def parse_patches_detection(label_dir_path, image, size):
+    files = [os.path.join(root, file) for root, dirs, files in os.walk(label_dir_path)
+             for file in files if os.path.splitext(file)[1] == '.txt']
+
+    original_height, original_width = image.shape[:2]
+    clip_height, clip_width = size[:2]
+    labels = []
+
+    for file in files:
+
+        # 根据文件名解析图片左上角点在原图中的坐标
+        # 如果解析失败，则文件名不好含左上角信息，使用默认值(0,0)
+        try:
+            file_name = os.path.split(file)[1]  # e.g. 400_600.txt
+            file_name = os.path.splitext(file_name)[0]  # e.g. 400_600
+            y_lu, x_lu = list(map(int, file_name.split('_')))  # y=400, x=600
+        except Exception:
+            y_lu, x_lu = 0, 0
+
+        with open(file, 'r') as f:
+            lines = f.readlines()
+
+        if len(lines) < 1:
+            continue
+
+        for line in lines:
+            # 获取小图中结果信息
+            class_id, x_center, y_center, width, height = list(
+                map(
+                    float,
+                    line.strip('\n').split())
+            )
+
+            # 将小图结果迁移到原始图像上
+            class_id = int(class_id)
+            x_center = (x_center * clip_width + x_lu) / original_width
+            y_center = (y_center * clip_height + y_lu) / original_height
+            width = width * clip_width / original_width
+            height = height * clip_height / original_height
+
+            # 追加到标签列表
+            labels.append([class_id, x_center, y_center, width, height])
+
+    return np.asarray(labels)
 
 
 # 工具函数，修建输入值

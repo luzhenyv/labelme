@@ -26,10 +26,10 @@ from PIL import ExifTags, Image, ImageOps
 from torch.utils.data import DataLoader, Dataset, dataloader, distributed
 from tqdm.auto import tqdm
 
-from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
-from utils.general import (DATASETS_DIR, LOGGER, NUM_THREADS, check_dataset, check_requirements, check_yaml, clean_str,
+from yolo.utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
+from yolo.utils.general import (DATASETS_DIR, LOGGER, NUM_THREADS, check_dataset, check_requirements, check_yaml, clean_str,
                            cv2, segments2boxes, xyn2xy, xywh2xyxy, xywhn2xyxy, xyxy2xywhn)
-from utils.torch_utils import torch_distributed_zero_first
+from yolo.utils.torch_utils import torch_distributed_zero_first
 
 # Parameters
 HELP_URL = 'https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data'
@@ -1019,7 +1019,7 @@ def dataset_stats(path='coco128.yaml', autodownload=False, verbose=False, profil
     with open(check_yaml(yaml_path), errors='ignore') as f:
         data = yaml.safe_load(f)  # data dict
         if zipped:
-            data['path'] = data_dir 
+            data['path'] = data_dir
     check_dataset(data, autodownload)  # download dataset if missing
     hub_dir = Path(data['path'] + ('-hub' if hub else ''))
     stats = {'nc': data['nc'], 'names': data['names']}  # statistics dictionary

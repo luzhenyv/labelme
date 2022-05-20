@@ -140,6 +140,7 @@ def main():
 
     logger = get_logger(config["app"]["name"])
     logger.setLevel(config["logger_level"].upper())
+    # print(f'logger level is {config["logger_level"]}')
 
     if hasattr(args, "version"):
         print("{0} {1}".format(config["app"]["name"], config["app"]["version"]))

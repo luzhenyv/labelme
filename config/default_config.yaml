@@ -8,7 +8,7 @@ keep_prev: false
 keep_prev_scale: false
 keep_prev_brightness: false
 keep_prev_contrast: false
-logger_level: info
+logger_level: DEBUG
 
 flags: null
 label_flags: null
@@ -73,10 +73,10 @@ canvas:
 
 # detection
 detect:
-  # 如果图像大于阈值，需要先裁剪，后融合
-  image_size: [500, 500]
-  stride: [300, 300]
-  TEMP_RESULT_DIR: ./temp
+  patch_size: [500, 500]
+  patch_stride: [300, 300]
+  area_threshold: 10000
+  iou_threshold: 0.2
 
 
 shortcuts:
