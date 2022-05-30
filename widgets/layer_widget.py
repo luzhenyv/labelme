@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QSize, QTimer
 
 
 class LoadingMask(QMainWindow):
-    def __init__(self, parent, gif=None, tip=None):
+    def __init__(self, parent, gif=r'../icons/loading.gif', tip=None):
         super(LoadingMask, self).__init__(parent)
 
         parent.installEventFilter(self)
