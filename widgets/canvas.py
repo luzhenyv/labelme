@@ -837,8 +837,10 @@ class Canvas(QtWidgets.QWidget):
     def loadShapes(self, shapes, replace=True):
         if replace:
             self.shapes = list(shapes)
+            # print(f'replace, canvas shape length is {len(self.shapes)}')
         else:
             self.shapes.extend(shapes)
+            # print(f'Append, canvas shape length is {len(self.shapes)}')
         self.storeShapes()
         self.current = None
         self.hShape = None

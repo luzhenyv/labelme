@@ -1214,13 +1214,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def loadShapes(self, shapes, replace=True):
         self._noSelectionSlot = True
+        if replace:
+            self.labelList.clear()
         for shape in shapes:
             self.addLabel(shape)
         self.labelList.clearSelection()
         self._noSelectionSlot = False
         self.canvas.loadShapes(shapes, replace=replace)
 
-    def loadLabels(self, shapes):
+    def loadLabels(self, shapes, replace=True):
         s = []
         for shape in shapes:
             label = shape["label"]
@@ -1254,7 +1256,7 @@ class MainWindow(QtWidgets.QMainWindow):
             shape.other_data = other_data
 
             s.append(shape)
-        self.loadShapes(s)
+        self.loadShapes(s, replace)
 
 
     def loadYoloLabels(self, labels, image):
@@ -1286,8 +1288,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
             shape.flags = {}
             s.append(shape)
-        self.setDirty()
-        self.loadShapes(s)
+
+        self.mayReplaceLabels(s)
 
 
     def loadFlags(self, flags):
@@ -1954,6 +1956,32 @@ class MainWindow(QtWidgets.QMainWindow):
 
         label_file = self.getLabelFile()
         return osp.exists(label_file)
+
+    def mayReplaceLabels(self, shapes):
+        # print(f'shapes are {shapes}')
+        if not self.dirty:
+            self.setDirty()
+            self.loadShapes(shapes, True)
+            return True
+        mb = QtWidgets.QMessageBox
+        msg = self.tr('Append labels or replace current labels?')
+        answer = mb.question(
+            self,
+            self.tr("Append or replace"),
+            msg,
+            mb.Yes | mb.No | mb.Cancel,
+            mb.Yes,
+        )
+        if answer == mb.Yes:
+            self.setDirty()
+            self.loadShapes(shapes, False)
+            return False
+        elif answer == mb.No:
+            self.setDirty()
+            self.loadShapes(shapes, True)
+            return True
+        else:
+            return False
 
     def mayContinue(self):
         if not self.dirty:
